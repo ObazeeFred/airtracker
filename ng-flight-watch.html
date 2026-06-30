@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NG Flight Watch — Domestic Flight Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0E1A;
+    --panel:#11182B;
+    --panel-alt:#161F38;
+    --border:#232C47;
+    --text:#E7ECF7;
+    --muted:#8C97B8;
+    --green:#34D399;
+    --amber:#FBBF24;
+    --red:#F87171;
+    --blue:#5B8DEF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(91,141,239,0.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:20px 28px;border-bottom:1px solid var(--border);
+    background:rgba(17,24,43,0.6);backdrop-filter:blur(8px);
+    position:sticky;top:0;z-index:10;
+  }
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand .dot{
+    width:11px;height:11px;border-radius:50%;background:var(--green);
+    box-shadow:0 0 0 0 rgba(52,211,153,0.6);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(52,211,153,0.55);}
+    70%{box-shadow:0 0 0 9px rgba(52,211,153,0);}
+    100%{box-shadow:0 0 0 0 rgba(52,211,153,0);}
+  }
+  .brand h1{font-size:19px;margin:0;font-weight:700;letter-spacing:0.2px;}
+  .brand small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px;letter-spacing:0.3px;}
+  .header-right{display:flex;align-items:center;gap:14px;}
+  #clock{font-size:13px;color:var(--muted);}
+  .btn{
+    background:var(--panel-alt);border:1px solid var(--border);color:var(--text);
+    padding:9px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;
+    display:flex;align-items:center;gap:6px;transition:border-color .15s ease;
+  }
+  .btn:hover{border-color:#3a4670;}
+  .btn:focus-visible, select:focus-visible, input:focus-visible, button:focus-visible{
+    outline:2px solid var(--blue);outline-offset:2px;
+  }
+  .btn.primary{background:var(--blue);border-color:var(--blue);color:#0A0E1A;font-weight:600;}
+
+  /* ---------- settings panel ---------- */
+  #settings{
+    max-width:1200px;margin:0 auto;padding:0 28px;overflow:hidden;
+    max-height:0;transition:max-height .25s ease;
+  }
+  #settings.open{max-height:240px;}
+  .settings-inner{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    margin:16px 0;padding:18px 20px;display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;
+  }
+  .field{display:flex;flex-direction:column;gap:6px;min-width:170px;}
+  .field label{font-size:11.5px;color:var(--muted);font-weight:500;letter-spacing:0.3px;text-transform:uppercase;}
+  .field input, .field select{
+    background:var(--bg);border:1px solid var(--border);color:var(--text);
+    padding:9px 10px;border-radius:7px;font-size:13.5px;font-family:'JetBrains Mono',monospace;
+  }
+  .field-note{font-size:11px;color:var(--muted);max-width:260px;line-height:1.5;}
+  .toggle-row{display:flex;align-items:center;gap:8px;}
+  .switch{position:relative;width:38px;height:21px;background:var(--border);border-radius:20px;cursor:pointer;transition:background .15s;}
+  .switch.on{background:var(--green);}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:17px;height:17px;background:#0A0E1A;border-radius:50%;transition:left .15s;}
+  .switch.on::after{left:19px;}
+
+  /* ---------- layout ---------- */
+  main{max-width:1200px;margin:0 auto;padding:24px 28px 60px;}
+  .banner{
+    display:flex;gap:10px;align-items:flex-start;
+    background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.3);
+    color:#FDE68A;padding:12px 14px;border-radius:8px;font-size:12.5px;line-height:1.6;margin-bottom:20px;
+  }
+  .banner.error{background:rgba(248,113,113,0.08);border-color:rgba(248,113,113,0.3);color:#FECACA;}
+  .banner b{color:inherit;}
+
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:26px;}
+  @media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr);}}
+  .stat-card{
+    background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 16px 14px;
+    position:relative;overflow:hidden;
+  }
+  .stat-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;}
+  .stat-card .value{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;}
+  .stat-card.green .value{color:var(--green);}
+  .stat-card.amber .value{color:var(--amber);}
+  .stat-card.red .value{color:var(--red);}
+  .stat-card.blue .value{color:var(--blue);}
+
+  /* tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+  .tab{
+    padding:11px 16px;font-size:13.5px;color:var(--muted);cursor:pointer;font-weight:500;
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  .tab.active{color:var(--text);border-color:var(--blue);}
+
+  .panel-box{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+
+  /* live board */
+  .board-head{
+    display:flex;justify-content:space-between;align-items:center;padding:14px 18px;
+    border-bottom:1px solid var(--border);
+  }
+  .board-head h3{margin:0;font-size:14.5px;font-weight:600;}
+  .board-head .scan{
+    height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);
+    position:absolute;left:0;right:0;animation:scan 3s linear infinite;opacity:.5;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{
+    text-align:left;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;
+    padding:10px 18px;font-weight:600;border-bottom:1px solid var(--border);background:var(--panel-alt);
+  }
+  tbody td{padding:11px 18px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:12.5px;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--panel-alt);}
+  .pill{
+    display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;
+    font-family:'Inter',sans-serif;
+  }
+  .pill.active, .pill.landed, .pill.scheduled{background:rgba(52,211,153,0.12);color:var(--green);}
+  .pill.delayed{background:rgba(251,191,36,0.12);color:var(--amber);}
+  .pill.cancelled, .pill.diverted{background:rgba(248,113,113,0.12);color:var(--red);}
+  .route{color:var(--text);font-weight:500;}
+  .muted-cell{color:var(--muted);}
+  .empty{padding:60px 20px;text-align:center;color:var(--muted);}
+  .empty b{color:var(--text);display:block;margin-bottom:6px;font-size:14px;}
+
+  /* delay analytics */
+  .grid-2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+  .chart-card{padding:18px 18px 20px;}
+  .chart-card h3{margin:0 0 16px;font-size:14px;font-weight:600;}
+  .bar-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .bar-row .bname{width:120px;font-size:12px;color:var(--muted);flex-shrink:0;}
+  .bar-track{flex:1;height:10px;background:var(--panel-alt);border-radius:6px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--blue),var(--green));}
+  .bar-val{width:46px;text-align:right;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text);flex-shrink:0;}
+
+  .donut-wrap{display:flex;align-items:center;gap:22px;}
+  .legend{display:flex;flex-direction:column;gap:10px;}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:12.5px;}
+  .legend-swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+
+  footer{text-align:center;color:var(--muted);font-size:11.5px;padding:20px;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot" id="liveDot"></span>
+    <div>
+      <h1 class="display">NG Flight Watch</h1>
+      <small>Domestic flight monitor · Nigeria</small>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="clock" class="mono"></span>
+    <button class="btn" id="settingsToggle">⚙ Settings</button>
+    <button class="btn primary" id="refreshBtn">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="settings">
+  <div class="settings-inner">
+    <div class="field">
+      <label for="apiKey">Aviationstack API key</label>
+      <input type="password" id="apiKey" placeholder="your access_key">
+    </div>
+    <div class="field">
+      <label for="airportSel">Airport</label>
+      <select id="airportSel"></select>
+    </div>
+    <div class="field">
+      <label for="dirSel">Direction</label>
+      <select id="dirSel">
+        <option value="dep_iata">Departures</option>
+        <option value="arr_iata">Arrivals</option>
+      </select>
+    </div>
+    <div class="toggle-row">
+      <div class="switch" id="demoSwitch"></div>
+      <label style="font-size:12.5px;color:var(--muted);">Demo data mode</label>
+    </div>
+    <div class="field-note">
+      Free-tier Aviationstack only serves data over <b>HTTP</b>. Browsers block HTTP calls from
+      an HTTPS page (mixed content), so live fetches may fail unless you're on a paid HTTPS-enabled
+      plan or hosting this file over plain HTTP. Use demo mode to explore the dashboard meanwhile.
+    </div>
+  </div>
+</div>
+
+<main>
+  <div id="bannerArea"></div>
+
+  <div class="stats" id="statsArea"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="live">Live Board</div>
+    <div class="tab" data-tab="delays">Delay Analytics</div>
+    <div class="tab" data-tab="routes">Routes &amp; Airlines</div>
+  </div>
+
+  <div id="tabContent"></div>
+</main>
+
+<footer>
+  Data source: Aviationstack API (configurable). Built for monitoring domestic Nigerian flights — Lagos, Abuja, Port Harcourt, Kano and more.
+</footer>
+
+<script>
+const NIGERIAN_AIRPORTS = [
+  {code:'ALL', name:'All Nigerian airports'},
+  {code:'LOS', name:'Lagos — Murtala Muhammed Intl'},
+  {code:'ABV', name:'Abuja — Nnamdi Azikiwe Intl'},
+  {code:'PHC', name:'Port Harcourt Intl'},
+  {code:'KAN', name:'Kano — Mallam Aminu Kano Intl'},
+  {code:'ENU', name:'Enugu Intl'},
+  {code:'CBQ', name:'Calabar'},
+  {code:'KAD', name:'Kaduna'},
+  {code:'ILR', name:'Ilorin'},
+  {code:'JOS', name:'Jos'},
+  {code:'SKO', name:'Sokoto'},
+  {code:'BNI', name:'Benin City'},
+  {code:'QOW', name:'Owerri'},
+  {code:'YOL', name:'Yola'},
+  {code:'AKR', name:'Akure'},
+  {code:'ABB', name:'Asaba'},
+];
+
+const DEMO_FLIGHTS = (() => {
+  const airlines = ['Air Peace','Ibom Air','Arik Air','ValueJet','United Nigeria','Overland Airways'];
+  const routes = [
+    ['LOS','ABV'],['ABV','LOS'],['LOS','PHC'],['ABV','KAN'],['LOS','ENU'],
+    ['PHC','ABV'],['LOS','CBQ'],['ABV','SKO'],['LOS','BNI'],['KAN','ABV'],
+    ['ABV','QOW'],['LOS','ILR'],['ABV','JOS'],['LOS','KAD'],['PHC','LOS']
+  ];
+  const statuses = ['active','active','landed','scheduled','delayed','delayed','cancelled'];
+  const out = [];
+  for(let i=0;i<42;i++){
+    const al = airlines[i % airlines.length];
+    const [dep,arr] = routes[i % routes.length];
+    const status = statuses[Math.floor(Math.random()*statuses.length)];
+    const delay = status==='delayed' ? 15 + Math.floor(Math.random()*90) : (Math.random()<0.15 ? Math.floor(Math.random()*14) : 0);
+    const hour = 6 + (i % 14);
+    const min = (i*7) % 60;
+    out.push({
+      flight: {iata: al.slice(0,2).toUpperCase()+String(100+i)},
+      airline: {name: al},
+      departure: {iata:dep, scheduled:`2026-06-30T${String(hour).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`, delay: delay||null},
+      arrival: {iata:arr, scheduled:`2026-06-30T${String((hour+1)%24).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`, delay: delay||null},
+      flight_status: status
+    });
+  }
+  return out;
+})();
+
+const state = {
+  apiKey:'',
+  airport:'ALL',
+  direction:'dep_iata',
+  demoMode:true,
+  flights:[],
+  loading:false,
+  error:null,
+  activeTab:'live'
+};
+
+// ---------- populate airport select ----------
+const airportSel = document.getElementById('airportSel');
+NIGERIAN_AIRPORTS.forEach(a=>{
+  const opt = document.createElement('option');
+  opt.value = a.code; opt.textContent = a.code==='ALL' ? a.name : `${a.code} — ${a.name.split('—')[1]?.trim() || a.name}`;
+  airportSel.appendChild(opt);
+});
+
+// ---------- clock ----------
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toUTCString().replace('GMT','UTC');
+}
+tickClock(); setInterval(tickClock, 1000);
+
+// ---------- settings interactions ----------
+document.getElementById('settingsToggle').onclick = ()=>{
+  document.getElementById('settings').classList.toggle('open');
+};
+document.getElementById('apiKey').oninput = e => state.apiKey = e.target.value.trim();
+airportSel.onchange = e => state.airport = e.target.value;
+document.getElementById('dirSel').onchange = e => state.direction = e.target.value;
+const demoSwitch = document.getElementById('demoSwitch');
+demoSwitch.classList.add('on');
+demoSwitch.onclick = ()=>{
+  state.demoMode = !state.demoMode;
+  demoSwitch.classList.toggle('on', state.demoMode);
+};
+document.getElementById('refreshBtn').onclick = fetchFlights;
+
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    state.activeTab = t.dataset.tab;
+    renderTabContent();
+  };
+});
+
+// ---------- fetching ----------
+async function fetchFlights(){
+  state.loading = true; state.error = null;
+  renderBanner();
+
+  if(state.demoMode){
+    await new Promise(r=>setTimeout(r,350));
+    state.flights = state.airport==='ALL' ? DEMO_FLIGHTS :
+      DEMO_FLIGHTS.filter(f => f.departure.iata===state.airport || f.arrival.iata===state.airport);
+    state.loading = false;
+    renderAll();
+    return;
+  }
+
+  if(!state.apiKey){
+    state.error = 'Enter an Aviationstack API key in Settings, or switch on Demo data mode.';
+    state.loading = false;
+    renderAll();
+    return;
+  }
+
+  try{
+    let url = `http://api.aviationstack.com/v1/flights?access_key=${state.apiKey}&limit=100`;
+    if(state.airport !== 'ALL'){
+      url += `&${state.direction}=${state.airport}`;
+    }
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`API responded with status ${res.status}`);
+    const data = await res.json();
+    if(data.error){
+      throw new Error(data.error.info || data.error.message || 'API returned an error.');
+    }
+    let flights = data.data || [];
+    if(state.airport === 'ALL'){
+      const codes = NIGERIAN_AIRPORTS.map(a=>a.code).filter(c=>c!=='ALL');
+      flights = flights.filter(f => codes.includes(f.departure?.iata) || codes.includes(f.arrival?.iata));
+    }
+    state.flights = flights;
+  }catch(err){
+    state.error = `Couldn't load live data (${err.message}). This is often the HTTPS/mixed-content limitation of the free Aviationstack plan — try Demo data mode, or host this file over HTTP, or upgrade your plan.`;
+    state.flights = [];
+  }finally{
+    state.loading = false;
+    renderAll();
+  }
+}
+
+// ---------- helpers ----------
+function fmtTime(iso){
+  if(!iso) return '—';
+  const d = new Date(iso);
+  if(isNaN(d)) return iso.split('T')[1]?.slice(0,5) || '—';
+  return d.toUTCString().slice(17,22);
+}
+function statusOf(f){
+  return (f.flight_status || 'scheduled').toLowerCase();
+}
+function computeStats(flights){
+  const total = flights.length;
+  let onTime=0, delayed=0, cancelled=0, delaySum=0, delayCount=0;
+  flights.forEach(f=>{
+    const st = statusOf(f);
+    const delayMin = f.departure?.delay || f.arrival?.delay || 0;
+    if(st==='cancelled' || st==='diverted') cancelled++;
+    else if(st==='delayed' || delayMin>=15){ delayed++; delaySum+=delayMin; delayCount++; }
+    else onTime++;
+  });
+  return {
+    total,
+    onTime,
+    delayed,
+    cancelled,
+    avgDelay: delayCount ? Math.round(delaySum/delayCount) : 0
+  };
+}
+
+// ---------- render: banner ----------
+function renderBanner(){
+  const area = document.getElementById('bannerArea');
+  area.innerHTML = '';
+  if(state.error){
+    const b = document.createElement('div');
+    b.className = 'banner error';
+    b.innerHTML = `<span>⚠</span><span>${state.error}</span>`;
+    area.appendChild(b);
+  }else if(state.demoMode){
+    const b = document.createElement('div');
+    b.className = 'banner';
+    b.innerHTML = `<span>ⓘ</span><span><b>Demo data mode is on</b> — showing sample flights so you can explore the dashboard. Turn it off in Settings and add your Aviationstack key for live data.</span>`;
+    area.appendChild(b);
+  }
+}
+
+// ---------- render: stats ----------
+function renderStats(){
+  const s = computeStats(state.flights);
+  const cards = [
+    {label:'Tracked flights', value:s.total, cls:'blue'},
+    {label:'On-time', value:s.onTime, cls:'green'},
+    {label:'Delayed', value:s.delayed, cls:'amber'},
+    {label:'Cancelled / diverted', value:s.cancelled, cls:'red'},
+    {label:'Avg delay (min)', value:s.avgDelay, cls:'amber'},
+  ];
+  document.getElementById('statsArea').innerHTML = cards.map(c=>`
+    <div class="stat-card ${c.cls}">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+    </div>
+  `).join('');
+}
+
+// ---------- render: tabs ----------
+function renderTabContent(){
+  const el = document.getElementById('tabContent');
+  if(state.activeTab==='live') el.innerHTML = liveBoardHTML();
+  else if(state.activeTab==='delays') el.innerHTML = delayAnalyticsHTML();
+  else el.innerHTML = routesHTML();
+}
+
+function liveBoardHTML(){
+  if(state.loading) return `<div class="panel-box"><div class="empty">Loading flight data…</div></div>`;
+  if(!state.flights.length) return `<div class="panel-box"><div class="empty"><b>No flights to show</b>Try Demo data mode, choose a different airport, or check your API key.</div></div>`;
+
+  const rows = state.flights.slice(0,60).map(f=>{
+    const st = statusOf(f);
+    return `<tr>
+      <td>${f.airline?.name || '—'}</td>
+      <td>${f.flight?.iata || f.flight?.icao || '—'}</td>
+      <td class="route">${f.departure?.iata || '—'} → ${f.arrival?.iata || '—'}</td>
+      <td>${fmtTime(f.departure?.scheduled)}</td>
+      <td>${fmtTime(f.arrival?.scheduled)}</td>
+      <td class="muted-cell">${(f.departure?.delay || f.arrival?.delay) ? (f.departure?.delay || f.arrival?.delay)+' min' : '—'}</td>
+      <td><span class="pill ${st}">${st}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="panel-box" style="position:relative;">
+      <div class="board-head">
+        <h3>Live flight board · ${state.airport==='ALL' ? 'All NG airports' : state.airport}</h3>
+        <span class="muted-cell mono" style="font-size:11.5px;">${state.flights.length} flights</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Airline</th><th>Flight</th><th>Route</th><th>Dep (UTC)</th><th>Arr (UTC)</th><th>Delay</th><th>Status</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function delayAnalyticsHTML(){
+  if(!state.flights.length) return `<div class="panel-box"><div class="empty">No data to analyze yet.</div></div>`;
+
+  // delay by airline
+  const byAirline = {};
+  state.flights.forEach(f=>{
+    const name = f.airline?.name || 'Unknown';
+    const delay = f.departure?.delay || f.arrival?.delay || 0;
+    if(!byAirline[name]) byAirline[name] = {count:0, totalDelay:0};
+    byAirline[name].count++;
+    byAirline[name].totalDelay += delay;
+  });
+  const airlineRows = Object.entries(byAirline)
+    .map(([name,v])=>({name, avg: Math.round(v.totalDelay/v.count)}))
+    .sort((a,b)=>b.avg-a.avg);
+  const maxAvg = Math.max(1, ...airlineRows.map(a=>a.avg));
+
+  const bars = airlineRows.map(a=>`
+    <div class="bar-row">
+      <div class="bname">${a.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(a.avg/maxAvg*100).toFixed(0)}%"></div></div>
+      <div class="bar-val">${a.avg}m</div>
+    </div>
+  `).join('');
+
+  // status breakdown donut (css conic-gradient)
+  const s = computeStats(state.flights);
+  const total = Math.max(1, s.total);
+  const onTimePct = s.onTime/total*100;
+  const delayedPct = s.delayed/total*100;
+  const cancelledPct = s.cancelled/total*100;
+  const gradient = `conic-gradient(
+    var(--green) 0% ${onTimePct}%,
+    var(--amber) ${onTimePct}% ${onTimePct+delayedPct}%,
+    var(--red) ${onTimePct+delayedPct}% ${onTimePct+delayedPct+cancelledPct}%
+  )`;
+
+  return `
+    <div class="grid-2">
+      <div class="panel-box chart-card">
+        <h3>Average delay by airline</h3>
+        ${bars || '<div class="empty">No delay data</div>'}
+      </div>
+      <div class="panel-box chart-card">
+        <h3>Status breakdown</h3>
+        <div class="donut-wrap">
+          <div style="width:120px;height:120px;border-radius:50%;background:${gradient};flex-shrink:0;"></div>
+          <div class="legend">
+            <div class="legend-item"><span class="legend-swatch" style="background:var(--green)"></span>On-time (${s.onTime})</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:var(--amber)"></span>Delayed (${s.delayed})</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:var(--red)"></span>Cancelled/diverted (${s.cancelled})</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function routesHTML(){
+  if(!state.flights.length) return `<div class="panel-box"><div class="empty">No data to summarize yet.</div></div>`;
+
+  const routeCounts = {};
+  const airlineCounts = {};
+  state.flights.forEach(f=>{
+    const route = `${f.departure?.iata || '?'} → ${f.arrival?.iata || '?'}`;
+    routeCounts[route] = (routeCounts[route]||0)+1;
+    const al = f.airline?.name || 'Unknown';
+    airlineCounts[al] = (airlineCounts[al]||0)+1;
+  });
+  const routeRows = Object.entries(routeCounts).sort((a,b)=>b[1]-a[1]).slice(0,10)
+    .map(([r,c])=>`<tr><td class="route">${r}</td><td>${c} flights</td></tr>`).join('');
+  const airlineRows = Object.entries(airlineCounts).sort((a,b)=>b[1]-a[1])
+    .map(([a,c])=>`<tr><td>${a}</td><td>${c} flights</td></tr>`).join('');
+
+  return `
+    <div class="grid-2">
+      <div class="panel-box">
+        <div class="board-head"><h3>Busiest routes</h3></div>
+        <table><tbody>${routeRows}</tbody></table>
+      </div>
+      <div class="panel-box">
+        <div class="board-head"><h3>Airlines operating</h3></div>
+        <table><tbody>${airlineRows}</tbody></table>
+      </div>
+    </div>
+  `;
+}
+
+function renderAll(){
+  renderBanner();
+  renderStats();
+  renderTabContent();
+}
+
+// initial load
+fetchFlights();
+</script>
+</body>
+</html>
